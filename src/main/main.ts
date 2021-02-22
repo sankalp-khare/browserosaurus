@@ -4,7 +4,6 @@ import electronIsDev from 'electron-is-dev'
 import path from 'path'
 import sleep from 'tings/sleep'
 
-import package_ from '../../package.json'
 import { apps } from '../config/apps'
 import { App } from '../config/types'
 import {
@@ -23,7 +22,6 @@ import {
   RENDERER_STARTED,
   SET_AS_DEFAULT_BROWSER,
   UPDATE_HIDDEN_TILE_IDS,
-  UPDATE_RESTART,
 } from '../renderer/sendToMain'
 import copyToClipboard from '../utils/copyToClipboard'
 import { filterAppsByInstalled } from '../utils/filterAppsByInstalled'
@@ -34,8 +32,6 @@ import {
   INSTALLED_APPS_FOUND,
   PROTOCOL_STATUS_RETRIEVED,
   STORE_RETRIEVED,
-  UPDATE_AVAILABLE,
-  UPDATE_DOWNLOADED,
   URL_UPDATED,
 } from './events'
 import { Hotkeys, Store, store } from './store'
@@ -68,41 +64,6 @@ electron.app.on('ready', async () => {
   })
 
   store.set('firstRun', false)
-
-  // Auto update on production
-  if (!electronIsDev) {
-    electron.autoUpdater.setFeedURL({
-      url: `https://update.electronjs.org/will-stone/browserosaurus/darwin-x64/${electron.app.getVersion()}`,
-      headers: {
-        'User-Agent': `${package_.name}/${package_.version} (darwin: x64)`,
-      },
-    })
-
-    electron.autoUpdater.on('before-quit-for-update', () => {
-      // All windows must be closed before an update can be applied using "restart".
-      bWindow?.destroy()
-    })
-
-    electron.autoUpdater.on('update-available', () => {
-      bWindow?.webContents.send(UPDATE_AVAILABLE)
-    })
-
-    electron.autoUpdater.on('update-downloaded', () => {
-      bWindow?.webContents.send(UPDATE_DOWNLOADED)
-    })
-
-    electron.autoUpdater.on('error', () => {
-      logger('AutoUpdater', 'An error has occurred')
-    })
-
-    // 1000 * 60 * 60 * 24
-    const ONE_DAY_MS = 86400000
-    // Check for updates every day. The first check is done on load: in the
-    // RENDERER_LOADED listener.
-    setInterval(() => {
-      electron.autoUpdater.checkForUpdates()
-    }, ONE_DAY_MS)
-  }
 
   // Hide from dock and cmd-tab
   electron.app.dock.hide()
@@ -152,8 +113,6 @@ electron.ipcMain.on(RENDERER_STARTED, async () => {
     PROTOCOL_STATUS_RETRIEVED,
     electron.app.isDefaultProtocolClient('http'),
   )
-
-  electron.autoUpdater.checkForUpdates()
 })
 
 electron.ipcMain.on(
@@ -215,10 +174,6 @@ electron.ipcMain.on(SET_AS_DEFAULT_BROWSER, () => {
 
 electron.ipcMain.on(RELOAD, () => {
   bWindow?.reload()
-})
-
-electron.ipcMain.on(UPDATE_RESTART, () => {
-  electron.autoUpdater.quitAndInstall()
 })
 
 electron.ipcMain.on(QUIT, () => {
